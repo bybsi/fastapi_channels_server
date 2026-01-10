@@ -58,8 +58,6 @@ class Plugin():
             self.logger.error("Could not create subprocess for plugin \"{}\". {}".format(self.name, exc))
             return False
 
-        #(o,e) = self.process.communicate();
-        #print("{},{}".format(o,e))
         self.pid_file.write_pidfile(self.process.pid)
 
         self.data_q = Queue()
@@ -85,9 +83,8 @@ class Plugin():
 
     def write(self, data : str) -> bool:
         try:
-            # Important that we are always sending a newline
-            # with our plugin commands. 10000% CPU otherwise,
-            # also we'll just never get a response.
+            # It's important that a newline is always sent with
+            # a plugin command, or there will be no response.
             self.process.stdin.write(data)
             if not data.endswith("\n"):
                 self.process.stdin.write("\n")
@@ -108,7 +105,6 @@ class Plugin():
     def read_block(self, marker : str = '[wait]') -> str:
         lines = ""
         try:
-            # TODO Put this in a thread so we can time it out
             while True:
                 line = self.data_q.get()
                 #if "[sequence]" in line:
@@ -124,9 +120,6 @@ class Plugin():
 
                 if "[wait]" in line:
                     break
-                # TODO for now re add lines here,
-                # but we should create instance with a different type
-                # of reader thread to keep new lines.
                 lines += line + "\n"
         except Exception as exc:
             self.logger.error("Error reading block data from plugin \"{}\", {}".format(self.name, exc))
