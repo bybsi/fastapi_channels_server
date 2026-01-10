@@ -55,6 +55,18 @@ async def response_message(recv_data, session_data, websocket):
     )
 
 #@ack
+async def response_join(recv_data, session_data, websocket):
+    pass
+
+#@ack
+async def response_banner(recv_data, session_data, websocket):
+    pass
+
+#@ack
+async def response_motd(recv_data, session_data, websocket):
+    pass
+
+#@ack
 async def response_scrabble(recv_data, session_data, websocket):
     await client_manager.send_ack(websocket, recv_data['m_id'])
 
@@ -99,7 +111,6 @@ async def response_rpg(recv_data, session_data, websocket):
         response = "Invalid command. /rpg start|stop|[0-9]"
 
     await client_manager.send_text(websocket, response, 'rpgGee', 'pre')
-
 
 async def response_close(recv_data, session_data, websocket):
     #TODO delete more stuff.
