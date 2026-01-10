@@ -1,0 +1,112 @@
+from typing import Annotated
+from pydantic import ValidationError
+
+from fastapi import (
+    WebSocket, WebSocketDisconnect, WebSocketException,
+    status
+)
+from api.routes.message_types import MTypes
+from api.client_manager import ClientManager
+from core.logger import Logger
+from plugins import Plugins
+
+logger = Logger('channels')
+client_manager = ClientManager()
+
+channel_plugins = Plugins(logger)
+scrabble = channel_plugins['scrabble']
+
+'''
+async def ack(fn):
+    async def ackfirst(recv_data, session_data, websocket):
+        await client_manager.send_ack(websocket, recv_data['m_id'])
+        fn(recv_data, session_data_websocket)
+    return ackfirst
+'''
+
+async def websocket_endpoint(websocket: WebSocket):
+    session_data = await client_manager.connect(websocket)
+    if not session_data:
+        raise WebSocketException(code=status.HTTP_403_FORBIDDEN)
+    try:
+        while True:
+            data = await websocket.receive_json()
+
+            try:
+                MTypes.validate_python(data)
+            except ValidationError as e:
+                print(f"Invalid data received from client ... {e}")
+                raise WebSocketException(code=status.HTTP_403_FORBIDDEN)
+
+            method_name = 'response_' + data['type']
+            await globals()[method_name](data, session_data, websocket)
+
+    except WebSocketDisconnect:
+        client_manager.disconnect(websocket)
+        #await manager.broadcast(f"Client #{client_id} left the chat")
+
+#@ack
+async def response_message(recv_data, session_data, websocket):
+    await client_manager.send_ack(websocket, recv_data['m_id'])
+    await client_manager.broadcast(
+        recv_data['text'],
+        session_data['user_id'],
+        session_data['display_name']
+    )
+
+#@ack
+async def response_scrabble(recv_data, session_data, websocket):
+    await client_manager.send_ack(websocket, recv_data['m_id'])
+
+    letters = recv_data['letters']
+    if len(letters) > 45:
+        return
+    if scrabble.input(letters):
+        response = scrabble.read()
+        await client_manager.send_text(websocket, response, 'scrabblesteve')
+    else:
+        await client_manager.send_text(websocket, 'scrabble error.', 'system')
+
+async def response_rpg(recv_data, session_data, websocket):
+    await client_manager.send_ack(websocket, recv_data['m_id'])
+
+    command = recv_data['command']
+    if len(command) > 16:
+        return
+
+    response = None
+    uid = session_data['user_id']
+    uname = session_data['username']
+    # TODO set logger
+    if channel_plugins.validate_command('rpg', command):
+        instance = channel_plugins.get_instance('rpg', uid, uname)
+        if command == 'start':
+            instance.start()
+            response = instance.read_block()
+        elif command == 'stop':
+            instance.stop()
+            channel_plugins.del_instance('rpg', uid)
+            response = "RPG was saved and stopped."
+        elif command.isdigit() and len(command) < 3:
+            if command == '6':
+                instance.stop()
+                channel_plugins.del_instance('rpg', uid)
+                response = "RPG was saved and stopped."
+            else:
+                instance.input(command)
+                response = instance.read_block()
+    else:
+        response = "Invalid command. /rpg start|stop|[0-9]"
+
+    await client_manager.send_text(websocket, response, 'rpgGee', 'pre')
+
+
+async def response_close(recv_data, session_data, websocket):
+    #TODO delete more stuff.
+    channel_plugins.unload_plugins_for_user(session_data['user_id'])
+    raise WebSocketDisconnect()
+
+async def response_keepalive(recv_data, session_data, websocket):
+    pass
+
+
