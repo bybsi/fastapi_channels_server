@@ -43,19 +43,19 @@ $MOB_SPECIAL_DESC = 0;
 $MOB_SPECIAL_CODE = 1;
 @mobs = (
 	['Mirror', [
-		['Wallop yourself for 50% HP', '$life -= ($life / 2)'], 
-		['Wallop yourself for 25% HP', '$life -= ($life / 4)'] ] ],
+		['Hit yourself for 50% HP', '$life -= ($life / 2)'], 
+		['Hit yourself for 25% HP', '$life -= ($life / 4)'] ] ],
 	['Clown', [
 		['clowned around too much','$mLife -= 500000'], 
 		['Scary, your chance of crit is temporarily ... 0%','$crit = 0'] ] ],
 	['Bob', [
 		['Steals all of your armor','$arm = 0'], 
-		['Slugs your mug for 1k damage','$life -= 1000'] ] ],
+		['Big Bob Hit! 1k damage','$life -= 1000'] ] ],
 	['Zzzzzzz', [
 		['Falls asleep and can no longer attack','$mMinDmg=0;$mMaxDmg=0'] ] ],
 	['Joker', [
-		['Tells a joke and catches you off guard depleting 5000 life','$life -= 5000'] ] ],
-	['SpearHurler', [
+		['A funny catches you off guard, depleting 5000 life, probably killing y ou, maybe','$life -= 5000'] ] ],
+	['SpearPerson', [
 		['Launches a spear in your general direction causing probably 2k damage','$life -= 2000'] ] ]
 );
 
@@ -412,7 +412,7 @@ sub _Fight
 	_QueryUser
 	(
 		[
-			['Garbage',	\&_SetMDifficulty, 1],
+			['Easiest',	\&_SetMDifficulty, 1],
 			['Easier',	\&_SetMDifficulty, 2],
 			['Easy', 	\&_SetMDifficulty, 3],
 			['Normal',	\&_SetMDifficulty, 4],
