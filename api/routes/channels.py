@@ -31,11 +31,10 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         while True:
             data = await websocket.receive_json()
-
             try:
                 MTypes.validate_python(data)
             except ValidationError as e:
-                print(f"Invalid data received from client ... {e}")
+                logger.warn(f"Invalid data received from client ... {e}")
                 raise WebSocketException(code=status.HTTP_403_FORBIDDEN)
 
             method_name = 'response_' + data['type']
