@@ -10,6 +10,12 @@ from api.client_manager import ClientManager
 from core.logger import Logger
 from plugins import Plugins
 
+import settings
+from core.db import DB
+from core.db.decrypt import DBCrypt
+
+db = DB(engine=DBCrypt().decrypt(settings.DB_ENGINE))
+
 logger = Logger('channels')
 client_manager = ClientManager()
 
