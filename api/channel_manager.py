@@ -3,7 +3,9 @@ import threading
 
 
 class Channel:
-    __slots__ = ['users', 'banner', 'motd', 'passcode']
+    __slots__ = [
+        'users', 'banner', 'motd', 
+        'passcode', 'owner_id', 'name']
 
     #channel_lock = threading.Lock()
 
