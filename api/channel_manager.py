@@ -53,6 +53,11 @@ class Channel:
         for user_id, socket in self.users.items():
             if user_id != session_data['user_id']:
                 await socket.send_json(data)
+    
+    async def broadcast_data_all(self, _type, data):
+        data['type'] = _type
+        for user_id, socket in self.users.items():
+            await socket.send_json(data)
 
     # decorator for broadcast.
 
