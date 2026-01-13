@@ -1,7 +1,6 @@
 import os
 import json
-
-SESSION_DIR = '/var/data/session'
+import settings
 
 def load(bs_sid: str):
     try:
