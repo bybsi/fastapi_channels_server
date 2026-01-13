@@ -17,7 +17,9 @@ def load(bs_sid: str):
                 del data['contact_data']
             if 'settings_json' in data:
                 del data['settings_json']
-            data['user_id'] = str(data['user_id'])
+            #data['user_id'] = str(data['user_id'])
+            data['user_id'] = int(data['user_id'])
+            data['channel'] = None
             return data
     except IOError as exc:
         print(f"Could not open session file {filepath}")

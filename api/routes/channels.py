@@ -7,17 +7,24 @@ from fastapi import (
 )
 from api.routes.message_types import MTypes
 from api.client_manager import ClientManager
+from api.channel_manager import ChannelManager
 from core.logger import Logger
 from plugins import Plugins
 
 import settings
+from sqlalchemy.orm.exc import NoResultFound
 from core.db import DB
 from core.db.decrypt import DBCrypt
 
-db = DB(engine=DBCrypt().decrypt(settings.DB_ENGINE))
-
 logger = Logger('channels')
-client_manager = ClientManager()
+
+db = DB(
+    engine=DBCrypt().decrypt(settings.DB_ENGINE),
+    logger=logger
+)
+
+client_manager = ClientManager(logger)
+channel_manager = ChannelManager(logger, db, client_manager)
 
 channel_plugins = Plugins(logger)
 scrabble = channel_plugins['scrabble']
@@ -30,11 +37,15 @@ async def ack(fn):
     return ackfirst
 '''
 
+
 async def websocket_endpoint(websocket: WebSocket):
     session_data = await client_manager.connect(websocket)
     if not session_data:
         raise WebSocketException(code=status.HTTP_403_FORBIDDEN)
     try:
+        # Join the global channel by default.
+        await channel_manager.join_channel('global', session_data, websocket)
+
         while True:
             data = await websocket.receive_json()
             try:
@@ -53,23 +64,26 @@ async def websocket_endpoint(websocket: WebSocket):
 #@ack
 async def response_message(recv_data, session_data, websocket):
     await client_manager.send_ack(websocket, recv_data['m_id'])
-    await client_manager.broadcast(
-        recv_data['text'],
-        session_data['user_id'],
-        session_data['display_name']
-    )
+    await session_data['channel'].broadcast_message(
+        recv_data['text'], session_data)
+
 
 #@ack
 async def response_join(recv_data, session_data, websocket):
-    pass
+    # TODO pydantic match regexes in model type.
+    channel_name = recv_data['channel_name']
+    await channel_manager.join_channel(channel_name, session_data, websocket)
 
-#@ack
+
 async def response_banner(recv_data, session_data, websocket):
-    pass
+    await channel_manager.update_metadata(
+        session_data, {'banner':recv_data['banner']})
 
-#@ack
+
 async def response_motd(recv_data, session_data, websocket):
-    pass
+    await channel_manager.update_metadata(
+        session_data, {'motd':recv_data['motd']})
+
 
 #@ack
 async def response_scrabble(recv_data, session_data, websocket):
@@ -83,6 +97,7 @@ async def response_scrabble(recv_data, session_data, websocket):
         await client_manager.send_text(websocket, response, 'scrabblesteve')
     else:
         await client_manager.send_text(websocket, 'scrabble error.', 'system')
+
 
 async def response_rpg(recv_data, session_data, websocket):
     await client_manager.send_ack(websocket, recv_data['m_id'])
@@ -117,10 +132,12 @@ async def response_rpg(recv_data, session_data, websocket):
 
     await client_manager.send_text(websocket, response, 'rpgGee', 'pre')
 
+
 async def response_close(recv_data, session_data, websocket):
     #TODO delete more stuff.
     channel_plugins.unload_plugins_for_user(session_data['user_id'])
     raise WebSocketDisconnect()
+
 
 async def response_keepalive(recv_data, session_data, websocket):
     pass

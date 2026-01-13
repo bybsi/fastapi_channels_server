@@ -7,11 +7,13 @@ class DB(ORM):
         except Exception as exc:
             print ("BSORM init failed: {}".format(exc))
             raise
+        self.logger = options['logger']
 
-    def try_commit(self):   
+    def safe_commit(self):   
         try:
             self.commit()
         except Exception as exc:
             self.rollback()
+            self.logger.error(f"Failed to commit: {exc}")
             return False
         return True

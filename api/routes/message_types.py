@@ -27,13 +27,16 @@ class MTypeClose(BaseModel):
 class MTypeKeepAlive(BaseModel):
     type: Literal['keepalive']
 
+class MTypeJoin(BaseModel):
+    type: Literal['join']
+    channel_name: str
 
 MTypes = TypeAdapter(Union[
     MTypeMessage,
     MTypeScrabble,
     MTypeRPG,
     MTypeClose,
-    MTypeKeepAlive
+    MTypeKeepAlive,
 ])
 
 '''
