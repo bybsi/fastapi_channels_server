@@ -4,7 +4,7 @@ import settings
 
 def load(bs_sid: str):
     try:
-        filepath = os.path.join(SESSION_DIR, bs_sid)
+        filepath = os.path.join(settings.SESSION_DIR, bs_sid)
         with open(filepath, 'r') as fh:
             data = json.loads(fh.readline())
             if 'user_id' not in data:
