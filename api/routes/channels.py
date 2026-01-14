@@ -51,7 +51,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
     try:
         # Join the global channel by default.
-        await channel_manager.join_channel('global', session_data, websocket)
+        await channel_manager.join_channel('Gateway', session_data, websocket)
         await websocket.send_json({
             'type':'channel_list',
             'data': channel_manager.get_channel_list()
