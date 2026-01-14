@@ -153,6 +153,9 @@ class ChannelManager:
 
     
     def get_channel_list(self):
+        # This one will prevent channels with no owner from showing up
+        # in the channels list, don't know if I want it that way or not yet.
+        #return [[k, v.status] for k,v in self.channels.items() if v.owner_id != 0]
         return [[k, v.status] for k,v in self.channels.items()]
 
 
