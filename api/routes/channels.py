@@ -47,7 +47,6 @@ async def websocket_endpoint(websocket: WebSocket):
         raise WebSocketException(
             code=status.WS_1008_POLICY_VIOLATION
         )
-        return
 
     try:
         # Join the global channel by default.
