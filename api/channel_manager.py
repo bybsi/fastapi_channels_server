@@ -1,5 +1,6 @@
+from sqlalchemy.orm.exc import NoResultFound
 from collections import defaultdict
-import threading
+#import threading
 
 class User:
     __slots__ = [
@@ -70,6 +71,15 @@ class Channel:
         return result
 
 
+    def get_meta_data(self):
+        return {
+            'type': 'meta_data',
+            'banner': self.banner, 
+            'motd': self.motd,
+            'channel_name':self.name
+        }
+
+
     def has_owner(self):
         return self.owner_id != 0
 
@@ -136,7 +146,13 @@ class ChannelManager:
     def get_channel_list(self):
         return [[k, v.status] for k,v in self.channels.items()]
 
-    
+
+    async def rejoin_channel(self, session_data, websocket):
+        channel = session_data['channel']
+        if channel:
+            await websocket.send_json({'multi':[channel.get_meta_data()]})
+
+
     async def join_channel(self, channel_name: str, session_data, websocket):
         if session_data['channel']:
             if session_data['channel'].name == channel_name:
@@ -167,12 +183,7 @@ class ChannelManager:
                 'type': 'user_list',
                 'data': channel.get_user_list()
             },
-            {
-                'type': 'meta_data',
-                'banner': channel.banner, 
-                'motd': channel.motd,
-                'channel_name':channel.name
-            }
+            channel.get_meta_data()
         ]})
 
         await channel.broadcast_data(
@@ -213,9 +224,14 @@ class ChannelManager:
             return
 
         if channel.owner_id == session_data['user_id']:
-            self.db.tbl_channel.update(**data)
+            try:
+                self.db.tbl_channel.filter_by(name=channel.name).update(data)
+            except Exception as exc:
+                self.logger.error(f"Could not update channel meta data (exc): {channel.name} {exc}")
+                return
+            
             if not self.db.safe_commit():
-                self.logger.error(f"Could not update channel meta data: {channel.name}")
+                self.logger.error(f"Could not update channel meta data (commit): {channel.name}")
                 return
 
             if 'banner' in data:
@@ -223,9 +239,7 @@ class ChannelManager:
             if 'motd' in data:
                 channel.motd = data['motd']
 
-            await channel.broadcast_data_all(
-                'meta_data',
-                {'data': data})
+            await channel.broadcast_data_all('meta_data', data)
             
 
     async def broadcast_data_all(self, _type, data):

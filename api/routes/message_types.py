@@ -1,29 +1,29 @@
 from typing import Literal, Union
-from pydantic import BaseModel, TypeAdapter
+from pydantic import BaseModel, TypeAdapter, Field
 #from enum import Enum
 
 class MTypeMessage(BaseModel):
     type: Literal['message']
-    m_id: str
-    text: str
+    m_id: str = Field(min_length=1, max_length=6)
+    text: str = Field(min_length=1, max_length=2048)
 
 class MTypeScrabble(BaseModel):
     type: Literal['scrabble']
     m_id: str
-    letters: str
+    letters: str = Field(min_length=1, max_length=48, pattern=r'^[a-zA-Z ]+$')
 
 class MTypeRPG(BaseModel):
     type: Literal['rpg']
     m_id: str
-    command: str
+    command: str = Field(min_length=1, max_length=16, pattern=r'^[\w\s]+$')
 
 class MTypeBanner(BaseModel):
     type: Literal['banner']
-    banner: str
+    banner: str = Field(min_length=0, max_length=512, pattern=r'^[\w\s]+$')
 
 class MTypeMotd(BaseModel):
     type: Literal['motd']
-    motd: str
+    motd: str = Field(min_length=0, max_length=512, pattern=r'^[\w\s]+$')
 
 class MTypeClose(BaseModel):
     type: Literal['close']
@@ -33,7 +33,10 @@ class MTypeKeepAlive(BaseModel):
 
 class MTypeJoin(BaseModel):
     type: Literal['join']
-    channel_name: str
+    channel_name: str = Field(min_length=1, max_length=32, pattern=r'^[\w \-]+$')
+
+class MTypeRejoin(BaseModel):
+    type: Literal['rejoin']
 
 MTypes = TypeAdapter(Union[
     MTypeMessage,
@@ -43,7 +46,8 @@ MTypes = TypeAdapter(Union[
     MTypeKeepAlive,
     MTypeBanner,
     MTypeMotd,
-    MTypeJoin
+    MTypeJoin,
+    MTypeRejoin
 ])
 
 '''

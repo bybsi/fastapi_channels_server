@@ -22,6 +22,9 @@ db = DB(
     engine=DBCrypt().decrypt(settings.DB_ENGINE),
     logger=logger
 )
+# This file gets included twice in dev mode!
+# Make sure to use run mode for production!
+#logger.info("Here1")
 
 client_manager = ClientManager(logger)
 channel_manager = ChannelManager(logger, db, client_manager)
@@ -41,7 +44,9 @@ async def ack(fn):
 async def websocket_endpoint(websocket: WebSocket):
     session_data = await client_manager.connect(websocket)
     if not session_data:
-        raise WebSocketException(code=status.HTTP_403_FORBIDDEN)
+        # Websocket never connected
+        return
+
     try:
         # Join the global channel by default.
         await channel_manager.join_channel('global', session_data, websocket)
@@ -53,19 +58,25 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             data = await websocket.receive_json()
             try:
+                #logger.info(f"{data}")
                 MTypes.validate_python(data)
             except ValidationError as e:
-                logger.warn(f"Invalid data received from client ... {e}")
-                raise WebSocketException(code=status.HTTP_403_FORBIDDEN)
+                logger.warn(f"Invalid data received from client ... {session_data['username']}")
+                await client_manager.send_text(websocket, 'Invalid command.', 'system')
+                continue
+                #raise WebSocketException(code=status.HTTP_403_FORBIDDEN)
 
             method_name = 'response_' + data['type']
             await globals()[method_name](data, session_data, websocket)
-
+    except WebSocketException:
+        try:
+            await client_manager.disconnect(websocket)
+        except Exception as exc:
+            logger.error(f"Error trying to disconnect after WebSocketException {exc}")
     except WebSocketDisconnect:
-        await client_manager.disconnect(websocket)
-    except Exception as e:
-        logger.error(f"Unknown exception {e}")
-        #await manager.broadcast(f"Client #{client_id} left the chat")
+        logger.error(f"Client disconnected")
+    except Exception as exc:
+        logger.error(f"Unknown exception {exc}")
 
 #@ack
 async def response_message(recv_data, session_data, websocket):
@@ -79,6 +90,10 @@ async def response_join(recv_data, session_data, websocket):
     # TODO pydantic match regexes in model type.
     channel_name = recv_data['channel_name']
     await channel_manager.join_channel(channel_name, session_data, websocket)
+
+
+async def response_rejoin(recv_data, session_data, websocket):
+    await channel_manager.rejoin_channel(session_data, websocket)
 
 
 async def response_banner(recv_data, session_data, websocket):

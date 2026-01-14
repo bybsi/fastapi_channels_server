@@ -19,6 +19,6 @@ app.add_middleware(
 )
 
 # TODO prefix endpoints with settings.API_V#
-app.include_router(api_router)
+#app.include_router(api_router)
 # Must include websocket routes independently
 app.add_api_websocket_route("/ws", websocket_endpoint)

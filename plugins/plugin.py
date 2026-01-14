@@ -145,7 +145,6 @@ class Plugin():
             pid = self.pid_file.get_pid()
             if pid is None:
                 return
-            self.logger.info("got pid {}".format(pid))
             try:
                 os.kill(pid, SIGTERM)
             except OSError as e:

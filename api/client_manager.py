@@ -16,12 +16,13 @@ class ClientManager:
     async def connect(self, websocket: WebSocket):
         bs_sid = websocket.cookies.get('BS_SID', None)
         if bs_sid == None:
-            print(f"Invalid SID (None)")
-            raise WebSocketException(code=status.HTTP_403_FORBIDDEN)
+            self.logger.info("Invalid SID (None)")
+            return None
 
         session_data = Session.load(bs_sid)
         if not session_data:
-            raise WebSocketException(code=status.HTTP_403_FORBIDDEN)
+            self.logger.info("Couldn't load session data")
+            return None
 
         await websocket.accept()
         return session_data
