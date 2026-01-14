@@ -98,24 +98,33 @@ class Channel:
     async def broadcast_message(self, message, session_data):
         for user in self.users.values():
             if user.user_id != session_data['user_id']:
-                await user.socket.send_json({
-                    'time': 'now',
-                    'text': message,
-                    'name': session_data['display_name']
-                })
+                try:
+                    await user.socket.send_json({
+                        'time': 'now',
+                        'text': message,
+                        'name': session_data['display_name']
+                    })
+                except Exception as e:
+                    print(f"message {e}")
 
     
     async def broadcast_data(self, _type, data, session_data):
         data['type'] = _type
         for user in self.users.values():
             if user.user_id != session_data['user_id']:
-                await user.socket.send_json(data)
+                try:
+                    await user.socket.send_json(data)
+                except Exception as e:
+                    print(f"data {e}")
     
     
     async def broadcast_data_all(self, _type, data):
         data['type'] = _type
         for user in self.users.values():
-            await user.socket.send_json(data)
+            try:
+                await user.socket.send_json(data)
+            except Exception as e:
+                print(f"data_all {e}")
 
     # decorator for broadcast.
 
@@ -192,11 +201,11 @@ class ChannelManager:
             session_data)
 
 
-    #async def leave_channel(self, channel_name: str, session_data):
     async def leave_channel(self, session_data):
         channel = session_data['channel']
         session_data['channel'] = None
         
+
         await channel.broadcast_data(
             'user_left', 
             {'user':channel.get_user(session_data['user_id'])},

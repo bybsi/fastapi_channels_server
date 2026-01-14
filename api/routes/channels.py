@@ -44,7 +44,9 @@ async def ack(fn):
 async def websocket_endpoint(websocket: WebSocket):
     session_data = await client_manager.connect(websocket)
     if not session_data:
-        # Websocket never connected
+        raise WebSocketException(
+            code=status.WS_1008_POLICY_VIOLATION
+        )
         return
 
     try:
@@ -75,6 +77,8 @@ async def websocket_endpoint(websocket: WebSocket):
             logger.error(f"Error trying to disconnect after WebSocketException {exc}")
     except WebSocketDisconnect:
         logger.error(f"Client disconnected")
+        logger.info(f"leaving channel {session_data}")
+        await channel_manager.leave_channel(session_data)
     except Exception as exc:
         logger.error(f"Unknown exception {exc}")
 
