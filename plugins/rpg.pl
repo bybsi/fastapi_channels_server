@@ -353,7 +353,7 @@ sub _QueryUser
 	print "----------------------------\n";
 	print map { ($_+1).") " . $menu->[$_][$MENU_LABEL] . "\n"; } 0..(scalar (@$menu) - 1);
 	print "----------------------------\n";
-	print "type /rpg#\n";
+	print "type /rpg #\n";
 	$input = _GetInput();
 	if ($input >= 0 && $input < scalar @$menu)
 	{
