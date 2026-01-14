@@ -1,24 +1,41 @@
 from collections import defaultdict
 import threading
 
+class User:
+    __slots__ = [
+        'display_name', 'user_id', 'socket'
+    ]
+
+
+    def __init__(self):
+        self.display_name = ""
+        self.user_id = 0
+        self.socket = None
+
 
 class Channel:
     __slots__ = [
         'users', 'banner', 'motd', 
-        'passcode', 'owner_id', 'name']
+        'passcode', 'owner_id', 'name', 'status']
 
     #channel_lock = threading.Lock()
 
     def __init__(self):
-        self.users = {}
+        self.users = defaultdict(User)
         self.banner = ""
         self.motd = ""
         self.passcode = ""
         self.owner_id = 0
         self.name = ""
+        self.status = "U"
 
-    def add_user(self, user_id, socket):
-        self.users[user_id] = socket
+
+    def add_user(self, session_data, socket):
+        user = self.users[session_data['user_id']]
+        user.display_name = session_data['display_name']
+        user.user_id = session_data['user_id']
+        user.socket = socket
+
 
     def del_user(self, user_id):
         try:
@@ -26,9 +43,36 @@ class Channel:
         except Exception as e:
             # Don't care.
             pass
-    
+
+
+    def get_flags(self, user):
+        return 'A' if user.display_name == self.name or int(user.user_id) == 1 else 'G'
+
+
+    def get_user(self, user_id):
+        user = self.users[user_id]
+        #flag = 'A' if user.display_name == self.name or int(user.user_id) == 1 else 'G'
+        flag = self.get_flags(user)
+        return [user.user_id, user.display_name, flag]
+
+
+    def get_user_list(self):
+        # Temp permissions implementation 
+        # until I re add this feature.
+        result = []
+        for user in self.users.values():
+            # user_id is parsed as an int but just cast it here
+            # incase I change it later on and forget about this.
+            # 'A' admin
+            #flag = 'A' if user.display_name == self.name or int(user.user_id) == 1 else 'G'
+            flag = self.get_flags(user)
+            result.append([user.user_id, user.display_name, flag])
+        return result
+
+
     def has_owner(self):
         return self.owner_id != 0
+
 
     def __call__(self):
         return {
@@ -36,28 +80,32 @@ class Channel:
             'banner':self.banner,
             'motd':self.motd,
             'passcode':self.passcode,
-            'created_by':self.owner_id
+            'created_by':self.owner_id,
+            'status':self.status
         }
-    
+
+
     async def broadcast_message(self, message, session_data):
-        for user_id, socket in self.users.items():
-            if user_id != session_data['user_id']:
-                await socket.send_json({
+        for user in self.users.values():
+            if user.user_id != session_data['user_id']:
+                await user.socket.send_json({
                     'time': 'now',
                     'text': message,
                     'name': session_data['display_name']
                 })
 
+    
     async def broadcast_data(self, _type, data, session_data):
         data['type'] = _type
-        for user_id, socket in self.users.items():
-            if user_id != session_data['user_id']:
-                await socket.send_json(data)
+        for user in self.users.values():
+            if user.user_id != session_data['user_id']:
+                await user.socket.send_json(data)
+    
     
     async def broadcast_data_all(self, _type, data):
         data['type'] = _type
-        for user_id, socket in self.users.items():
-            await socket.send_json(data)
+        for user in self.users.values():
+            await user.socket.send_json(data)
 
     # decorator for broadcast.
 
@@ -69,18 +117,24 @@ class ChannelManager:
         self.client_manager = client_manager
         self.load_channels()
 
+    
     def load_channels(self):
         try:
-            rows = db.tbl_channel.all()
+            rows = self.db.tbl_channel.all()
             for row in rows:
                 channel = self.channels[row.name]
-                channel.banner = row.banner
-                channel.motd = row.motd
-                channel.passcode = row.passcode
+                channel.banner = row.banner or "" 
+                channel.motd = row.motd or ""
+                channel.passcode = row.passcode or ""
                 channel.owner_id = row.created_by
                 channel.name = row.name
+                channel.status = row.status
         except Exception as exc:
-            self.logger.error("Could not load channel {exc}")
+            self.logger.error(f"Could not load channel {exc}")
+
+    
+    def get_channel_list(self):
+        return [[k, v.status] for k,v in self.channels.items()]
 
     
     async def join_channel(self, channel_name: str, session_data, websocket):
@@ -89,10 +143,10 @@ class ChannelManager:
                 # User is already in the channel
                 return
             # Leave the current channel
-            self.leave_channel(channel_name, session_data)
+            await self.leave_channel(session_data)
 
         channel = self.channels[channel_name]
-        channel.add_user(session_data['user_id'], websocket)
+        channel.add_user(session_data, websocket)
         # Channels that don't persist have no owner,
         # they don't get loaded from the database.
         if not channel.has_owner():
@@ -104,47 +158,53 @@ class ChannelManager:
                 # This channel belongs to the user that joined it.
                 # They are now the OP of the channel and the
                 # channel will persist.
-                self.add_channel_to_database(channel, session_data['user_id'])
+                await self.add_channel_to_db(channel, session_data['user_id'])
 
         # The users active channel.
         session_data['channel'] = channel
-        self.logger.info("Sending channel list and meta data")
-        await websocket.send_json([{
-            'type': 'channel_list',
-            'data': self.channels.keys()
-        }, {
-            'type': 'meta_data',
-            'data': {
-                'banner': self.channel.banner, 
-                'motd': self.channel.motd
+        await websocket.send_json({'multi': [
+            {
+                'type': 'user_list',
+                'data': channel.get_user_list()
+            },
+            {
+                'type': 'meta_data',
+                'banner': channel.banner, 
+                'motd': channel.motd,
+                'channel_name':channel.name
             }
-        }])
+        ]})
 
-        self.logger.info("Sending new user to others")
         await channel.broadcast_data(
             'user_joined', 
-            {'username':session_data['username']},
+            {'user':channel.get_user(session_data['user_id'])},
             session_data)
 
 
-    async def leave_channel(self, channel_name: str, session_data):
-        channel = self.channels[channel_name]
-        channel.del_user(session_data['user_id'])
+    #async def leave_channel(self, channel_name: str, session_data):
+    async def leave_channel(self, session_data):
+        channel = session_data['channel']
         session_data['channel'] = None
         
         await channel.broadcast_data(
             'user_left', 
-            {'username':session_data['username']},
+            {'user':channel.get_user(session_data['user_id'])},
             session_data)
+        
+        channel.del_user(session_data['user_id'])
 
 
     async def add_channel_to_db(self, channel, user_id):
         channel.owner_id = user_id
-        db.tbl_channel.insert(**Channel())
-        if not db.safe_commit():
+        self.db.tbl_channel.insert(**channel())
+        if not self.db.safe_commit():
             channel.owner_id = 0
-            self.logger.error("Could not add channel to DB: {channel_name}")
+            self.logger.error(f"Could not add channel to DB: {channel_name}")
             await client_manager.send_text(websocket, "Could not create channel.")
+        else:
+            await self.broadcast_data_all(
+                'new_channel', 
+                {'channel':[channel.name, channel.status]})
 
 
     async def update_metadata(self, session_data, data):
@@ -153,8 +213,8 @@ class ChannelManager:
             return
 
         if channel.owner_id == session_data['user_id']:
-            db.tbl_channel.update(**data)
-            if not db.safe_commit():
+            self.db.tbl_channel.update(**data)
+            if not self.db.safe_commit():
                 self.logger.error(f"Could not update channel meta data: {channel.name}")
                 return
 
@@ -166,6 +226,11 @@ class ChannelManager:
             await channel.broadcast_data_all(
                 'meta_data',
                 {'data': data})
+            
+
+    async def broadcast_data_all(self, _type, data):
+        for channel in self.channels.values():
+            await channel.broadcast_data_all(_type, data)
                 
 
 

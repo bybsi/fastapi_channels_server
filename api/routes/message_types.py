@@ -7,22 +7,26 @@ class MTypeMessage(BaseModel):
     m_id: str
     text: str
 
-
 class MTypeScrabble(BaseModel):
     type: Literal['scrabble']
     m_id: str
     letters: str
-
 
 class MTypeRPG(BaseModel):
     type: Literal['rpg']
     m_id: str
     command: str
 
+class MTypeBanner(BaseModel):
+    type: Literal['banner']
+    banner: str
+
+class MTypeMotd(BaseModel):
+    type: Literal['motd']
+    motd: str
 
 class MTypeClose(BaseModel):
     type: Literal['close']
-
 
 class MTypeKeepAlive(BaseModel):
     type: Literal['keepalive']
@@ -37,6 +41,9 @@ MTypes = TypeAdapter(Union[
     MTypeRPG,
     MTypeClose,
     MTypeKeepAlive,
+    MTypeBanner,
+    MTypeMotd,
+    MTypeJoin
 ])
 
 '''

@@ -40,13 +40,16 @@ class ClientManager:
         if _type:
             data['type'] = _type
         await websocket.send_json(data)
-            
+        
+
     async def send_ack(self, websocket: WebSocket, message_id : str):
         data = {'type':'ack'}
         if message_id:
             data['m_id'] = message_id
         await websocket.send_json(data)
 
-    
+
+    async def disconnect(self, websocket: WebSocket):
+        await websocket.close()
 
 

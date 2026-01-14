@@ -45,6 +45,10 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         # Join the global channel by default.
         await channel_manager.join_channel('global', session_data, websocket)
+        await websocket.send_json({
+            'type':'channel_list',
+            'data': channel_manager.get_channel_list()
+        })
 
         while True:
             data = await websocket.receive_json()
@@ -58,7 +62,9 @@ async def websocket_endpoint(websocket: WebSocket):
             await globals()[method_name](data, session_data, websocket)
 
     except WebSocketDisconnect:
-        client_manager.disconnect(websocket)
+        await client_manager.disconnect(websocket)
+    except Exception as e:
+        logger.error(f"Unknown exception {e}")
         #await manager.broadcast(f"Client #{client_id} left the chat")
 
 #@ack
