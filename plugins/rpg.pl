@@ -1,4 +1,5 @@
 #!/usr/bin/perl
+# Dec 2006
 
 use Digest::MD5 qw(md5_base64);
 srand time();
@@ -10,7 +11,8 @@ $minDmg = $maxDmg = 50;
 $mMinDmg = $mMaxDmg = 5;
 $arm = $mArm = 5;
 $crit = $mCrit = 1;
-$life = 2500; $mLife = 500;
+$life = 2500; 
+$mLife = 500;
 $gold = $mGold = 0;
 $exp = $mExp = 0;
 $cStr = 'gold';
@@ -20,13 +22,13 @@ $keys = 0;
 $level = $mDifficulty = 1;
 $mobType = 0;
 
-$MENU_LABEL			= 0;
-$MENU_ACTION		= 1;
-$MENU_ACTION_ARGS	= 2;
+$MENU_LABEL       = 0;
+$MENU_ACTION      = 1;
+$MENU_ACTION_ARGS = 2;
 
-$AFFIX_DETAIL	= 0;
-$AFFIX_CODE		= 1;
-$AFFIX_VALUE	= 2;
+$AFFIX_DETAIL = 0;
+$AFFIX_CODE   = 1;
+$AFFIX_VALUE  = 2;
 
 $FIGHT_STATUS_FIGHTING = 1;
 $FIGHT_STATUS_MOB_DEAD = 4;
@@ -54,7 +56,7 @@ $MOB_SPECIAL_CODE = 1;
 	['Zzzzzzz', [
 		['Falls asleep and can no longer attack','$mMinDmg=0;$mMaxDmg=0'] ] ],
 	['Joker', [
-		['A funny catches you off guard, depleting 5000 life, probably killing y ou, maybe','$life -= 5000'] ] ],
+		['Received a joke, rofling, depleting 5000 life, probably killing you, maybe','$life -= 5000'] ] ],
 	['SpearPerson', [
 		['Launches a spear in your general direction causing probably 2k damage','$life -= 2000'] ] ]
 );
@@ -209,63 +211,60 @@ sub _DisplayStats
 {
 	my $type = shift;
 	my $mode = shift;
-
-	if ($type eq 'player')
-	{
-		if ($mode eq 'full')
-		{
-			my @data;
-			my $tMin = 0;
-			my $tMax = 0;
-			my %totals = ('arm'=>0,'crit'=>0,'life'=>0);
-			foreach my $eqType (@equipTypes)
-			{
-				my @stats = (0, 0, 0, 0);
-				foreach my $affixId (@{$equipment{$eqType}->{'affixes'}})
-				{
-					foreach my $affixReg (@affixRegex)
-					{
-						if ($affixes[$affixId]->[$AFFIX_DETAIL] =~ /$affixReg/)
-						{
-							if ($3 eq 'dmg')
-							{
-								my $min = $1;
-								my $max = $2;
-								$tMin += $min;
-								$tMax += $max;
-								if ($stats[0] =~ /(\d+)-(\d+)/)
-								{
-									$min += $1;
-									$max += $2;
-								}
-								$stats[0] = "$min-$max";
-							}
-							else
-							{
-								$stats[$3 eq 'arm' ? 1 : $3 eq 'crit' ? 2 : 3] += $1;
-								$totals{$3} += $1;
-							}
-						}
-					}
-				}
-				push @data, [ $eqType, "$stats[0]", "$stats[1]", "$stats[2]", "$stats[3]" ];
-			}
-
-			unshift @data, ["","dmg","arm","crit","life"];
-			push @data , ["TOTALS","$tMin-$tMax","$totals{'arm'}","$totals{'crit'}","$totals{'life'}"];
-			print "\tYOU (level $level, XP $exp/$reqExp[0])\n\t$cStr: $gold\n\tkeys: $keys\n";
-			_OutputTable(\@data);
-		
-		}
-		else
-		{
-			print "YOU (level $level, XP $exp/$reqExp[0]):\n\tArmor: $arm\n\tDamage: $minDmg - $maxDmg\n\tCrit: $crit\n\tLife: $life\n\t$cStr: $gold\n\tKeys:$keys\n";
-		}
-	}
-	elsif ($type eq 'mob')
+	
+	if ($type eq 'mob')
 	{
 		print "MOB:\n\ttype:$mobs[$mobType]->[$MOB_NAME]\n\tArmor: $mArm\n\tDamage: $mMinDmg - $mMaxDmg\n\tCrit: $mCrit\n\tLife: $mLife\n\t$cStr: $mGold\n";
+		return;
 	}
+
+	if ($mode ne 'full') {
+		print "YOU (level $level, XP $exp/$reqExp[0]):\n\tArmor: $arm\n\tDamage: $minDmg - $maxDmg\n\tCrit: $crit\n\tLife: $life\n\t$cStr: $gold\n\tKeys:$keys\n";
+		return;
+	}
+
+	my @data;
+	my $tMin = 0;
+	my $tMax = 0;
+	my %totals = ('arm'=>0,'crit'=>0,'life'=>0);
+	foreach my $eqType (@equipTypes)
+	{
+		my @stats = (0, 0, 0, 0);
+		foreach my $affixId (@{$equipment{$eqType}->{'affixes'}})
+		{
+			foreach my $affixReg (@affixRegex)
+			{
+				if ($affixes[$affixId]->[$AFFIX_DETAIL] =~ /$affixReg/)
+				{
+					if ($3 eq 'dmg')
+					{
+						my $min = $1;
+						my $max = $2;
+						$tMin += $min;
+						$tMax += $max;
+						if ($stats[0] =~ /(\d+)-(\d+)/)
+						{
+							$min += $1;
+							$max += $2;
+						}
+						$stats[0] = "$min-$max";
+					}
+					else
+					{
+						$stats[$3 eq 'arm' ? 1 : $3 eq 'crit' ? 2 : 3] += $1;
+						$totals{$3} += $1;
+					}
+				}
+			}
+		}
+		push @data, [ $eqType, "$stats[0]", "$stats[1]", "$stats[2]", "$stats[3]" ];
+	}
+
+	unshift @data, ["","dmg","arm","crit","life"];
+	push @data , ["TOTALS","$tMin-$tMax","$totals{'arm'}","$totals{'crit'}","$totals{'life'}"];
+	print "\tYOU (level $level, XP $exp/$reqExp[0])\n\t$cStr: $gold\n\tkeys: $keys\n";
+	_OutputTable(\@data);
+		
 }
 
 sub _OutputTable
@@ -320,9 +319,9 @@ sub _Equip
 
 sub _ApplyItemStats
 {
-	my $item	= shift;
-	my $type	= shift;
-	my $op		= shift;
+	my $item = shift;
+	my $type = shift;
+	my $op   = shift;
 	map { 
 		my $code = $affixes[$_][$AFFIX_CODE];
 		my %UC = ('a'=>'A','l'=>'L','c'=>'C','m'=>'M');
@@ -369,22 +368,22 @@ sub _QueryUser
 
 sub _GetInput
 {
-    print "[wait]\n";
+	print "[wait]\n";
 	my $nodecr = shift;
 	my $in = <STDIN>;
-    if ($in eq "#sq\n") {
-        # save quit!
-        _Save();
-        print "saved\n";
-        exit(0);
-    }
+	if ($in eq "#sq\n") {
+	        # save quit!
+        	_Save();
+	        print "saved\n";
+        	exit(0);
+	}
 	$in =~ s/\s+$//;
 	$in-- if !$nodecr;
 	return $in;
 }
 
 sub _AddGold		{ $gold += shift->{'value'}; }
-sub _Quit			{ _Save();print "[wait]\n"; exit 0; }
+sub _Quit		{ _Save();print "[wait]\n"; exit 0; }
 sub _SetMDifficulty	{ $mDifficulty = shift; }
 
 sub _SpawnMob
