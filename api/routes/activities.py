@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, time
 from typing import Annotated, List
 from pydantic import BaseModel, Field, parse_obj_as
 #from pydantic import ValidationError
@@ -17,7 +17,7 @@ from api.routes.query_model import (
     build_filter, build_sort
 )
 
-logger = Logger('music')
+logger = Logger('activities')
 
 db = DB(
     engine=DBCrypt().decrypt(settings.DB_ENGINE),
@@ -28,33 +28,37 @@ db = DB(
 # Or just run using uvicorn!
 #logger.info("Here1")
 
-class MusicRecord(BaseModel):
+class ActivitiesRecord(BaseModel):
     id: int
+    type: str
     title: str
-    watch_id: str
-    length_seconds: int
-    plays: int
-    audio_file: str
-    created_at: datetime
+    date: datetime
+    distance: float
+    time: time
+    heart_rate: int
+    avg_pace: str
+    best_pace: str
+    ascent: int
+    descent: int
 
-router = APIRouter(prefix="/music", tags=["music"])
+router = APIRouter(prefix="/activities", tags=["activities"])
 
 @router.get("/")
 def index(db_query: Annotated[DBQueryParams, Query()]):
     try:
         num_rows = db_query.limit
         start_row = (db_query.page - 1) * num_rows
-        total_rows = db.tbl_music\
-            .filter(*build_filter(db.tbl_music, db_query))\
+        total_rows = db.tbl_activities\
+            .filter(*build_filter(db.tbl_activities, db_query))\
             .count()
         results = []
-        for result in db.tbl_music\
-            .filter(*build_filter(db.tbl_music, db_query))\
-            .order_by(build_sort(db.tbl_music, db_query))\
+        for result in db.tbl_activities\
+            .filter(*build_filter(db.tbl_activities, db_query))\
+            .order_by(build_sort(db.tbl_activities, db_query))\
             .limit(num_rows)\
             .offset(start_row)\
             .all():
-            results.append(MusicRecord.model_validate(result, from_attributes=True))
+            results.append(ActivitiesRecord.model_validate(result, from_attributes=True))
     except Exception as exc:
         logger.error(f"Error fetching {__name__} data: {exc}")
         raise HTTPException(
