@@ -59,7 +59,8 @@ class ORM():
         if self.session.Session.registry.has():
             # Means the session is in use.
             self.session.Sessions = scoped_session(sessionmaker())
-        self.session.Session.configure(bind = self.engine)
+        else:
+            self.session.Session.configure(bind = self.engine)
         self.engine.execute = lambda x: self.execute(x)
         self.bind = self.engine
         self.cache = {}
