@@ -7,7 +7,6 @@ from fastapi import APIRouter, HTTPException, Query
 from core.logger import Logger
 import settings
 
-from sqlalchemy import asc, desc
 from sqlalchemy.orm.exc import NoResultFound
 from core.db import DB
 from core.db.decrypt import DBCrypt
