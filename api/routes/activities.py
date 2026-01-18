@@ -40,7 +40,10 @@ class ActivitiesRecord(BaseModel):
     ascent: int
     descent: int
 
+
 router = APIRouter(prefix="/activities", tags=["activities"])
+
+# TODO async DB which requires sqlalchemy create_async_engine()
 
 @router.get("/")
 def index(db_query: Annotated[DBQueryParams, Query()]):
@@ -64,4 +67,26 @@ def index(db_query: Annotated[DBQueryParams, Query()]):
             status_code=500, detail=f"Could not get {__name__} data, see logs")
     else:
         return DBQueryResult(num_rows=total_rows, rows=results)
+
+@router.get("/{activity_id}")
+def activity(activity_id : int):
+    try:
+        result = db.tbl_activities.filter_by(id=activity_id).one()
+    except NoResultFound:
+        raise HTTPException(
+            status_code=404, detail=f"Could not get {__name__} (id={activity_id})")
+    return ActivitiesRecord.model_validate(result, from_attributes=True)
+
+
+
+
+
+
+
+
+
+
+
+
+
 
