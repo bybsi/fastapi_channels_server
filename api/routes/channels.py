@@ -32,13 +32,16 @@ channel_manager = ChannelManager(logger, db, client_manager)
 channel_plugins = Plugins(logger)
 scrabble = channel_plugins['scrabble']
 
-'''
-async def ack(fn):
-    async def ackfirst(recv_data, session_data, websocket):
+def ack(fn):
+    '''
+    Decorator function for sending a message acknowledgement
+    before processing the message.
+    Should only be used if recv_data should contain an m_id field.
+    '''
+    async def inner(recv_data, session_data, websocket):
         await client_manager.send_ack(websocket, recv_data['m_id'])
-        fn(recv_data, session_data_websocket)
-    return ackfirst
-'''
+        await fn(recv_data, session_data, websocket)
+    return inner
 
 
 async def websocket_endpoint(websocket: WebSocket):
@@ -80,14 +83,12 @@ async def websocket_endpoint(websocket: WebSocket):
     except Exception as exc:
         logger.error(f"Unknown exception {exc}")
 
-#@ack
+@ack
 async def response_message(recv_data, session_data, websocket):
-    await client_manager.send_ack(websocket, recv_data['m_id'])
     await session_data['channel'].broadcast_message(
         recv_data['text'], session_data)
 
 
-#@ack
 async def response_join(recv_data, session_data, websocket):
     # TODO pydantic match regexes in model type.
     channel_name = recv_data['channel_name']
@@ -108,10 +109,8 @@ async def response_motd(recv_data, session_data, websocket):
         session_data, {'motd':recv_data['motd']})
 
 
-#@ack
+@ack
 async def response_scrabble(recv_data, session_data, websocket):
-    await client_manager.send_ack(websocket, recv_data['m_id'])
-
     letters = recv_data['letters']
     if len(letters) > 45:
         return
@@ -121,10 +120,8 @@ async def response_scrabble(recv_data, session_data, websocket):
     else:
         await client_manager.send_text(websocket, 'scrabble error.', 'system')
 
-
+@ack
 async def response_rpg(recv_data, session_data, websocket):
-    await client_manager.send_ack(websocket, recv_data['m_id'])
-
     command = recv_data['command']
     if len(command) > 16:
         return
