@@ -38,6 +38,8 @@ class MusicRecord(BaseModel):
 
 router = APIRouter(prefix="/music", tags=["music"])
 
+# TODO async DB which requires sqlalchemy create_async_engine()
+
 @router.get("/")
 def index(db_query: Annotated[DBQueryParams, Query()]):
     try:
@@ -60,4 +62,13 @@ def index(db_query: Annotated[DBQueryParams, Query()]):
             status_code=500, detail=f"Could not get {__name__} data, see logs")
     else:
         return DBQueryResult(num_rows=total_rows, rows=results)
+
+@router.get("/{music_id}")
+def music(music_id : int):
+    try:
+        result = db.tbl_music.filter_by(id=music_id).one()
+    except NoResultFound:
+        raise HTTPException(
+            status_code=404, detail=f"Could not get {__name__} (id={music_id})")
+    return MusicRecord.model_validate(result, from_attributes=True)
 
