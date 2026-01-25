@@ -79,6 +79,7 @@ async def websocket_endpoint(websocket: WebSocket):
             logger.error(f"Error trying to disconnect after WebSocketException {exc}")
     except WebSocketDisconnect:
         logger.error(f"Client disconnected")
+        channel_plugins.unload_plugins_for_user(session_data['user_id'])
         await channel_manager.leave_channel(session_data)
     except Exception as exc:
         logger.error(f"Unknown exception {exc}")
